@@ -360,8 +360,8 @@ module Formotion
       @form_data_key_value = {}
 
       # TODO: Handle SubForms
-      initial_form_data[:sections].each do |s|
-        s[:rows].each do |row|
+      initial_form_data[:sections].each do |section|
+        section[:rows].each do |row|
           @form_data_key_value[row[:key]] = row[:value]
         end
       end

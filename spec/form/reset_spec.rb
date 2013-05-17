@@ -15,7 +15,7 @@ describe "Form Resetting" do
         ]
       ]
     })
-    
+
     f.save
 
     r = f.sections[0].rows[0]
@@ -29,9 +29,6 @@ describe "Form Resetting" do
   end
 
   it "resets from the passed in data if there is no persist_key" do
-    key = "test_#{rand(255)}"
-    App::Persistence["FORMOTION_#{key}"] = nil
-    App::Persistence["FORMOTION_#{key}_ORIGINAL"] = nil
     f = Formotion::Form.new({
       sections: [
         rows: [ {
@@ -50,4 +47,34 @@ describe "Form Resetting" do
     r.value.should == "initial value"
   end
 
+  it "works with subforms" do
+    hash = {
+      sections: [
+        rows: [ {
+            key: :subform,
+            type: :subform,
+            title: "Subform",
+            subform: {
+              title: "New Page",
+              sections: [
+                rows: [{
+                  key: "second",
+                  type: "string",
+                  value: "initial value"
+                }]
+              ]
+            }
+          }
+        ]
+      ]
+    }
+    f = Formotion::Form.new(hash)
+    f.to_hash.should == hash
+
+    r = f.sections[0].rows[0].subform.to_form.sections[0].rows[0]
+    r.value = "new value"
+
+    f.reset
+    r.value.should == "initial value"
+  end
 end
