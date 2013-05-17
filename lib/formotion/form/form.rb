@@ -18,6 +18,8 @@ module Formotion
       attr_accessor prop
     }
 
+    attr_accessor :initial_form_data
+
     # Sections are create specially using #create_section, so we don't allow
     # them to be pased in the hash
     SERIALIZE_PROPERTIES = PROPERTIES + [:sections]
@@ -32,6 +34,8 @@ module Formotion
     def initialize(params = {})
       # super takes care of initializing the ::PROPERTIES in params
       super
+
+      self.initial_form_data = params
 
       sections = params[:sections] || params["sections"]
       sections && sections.each_with_index {|section_hash, index|
@@ -277,29 +281,45 @@ module Formotion
       if rendered_data
         @form_observer.call(self, rendered_data)
       else
-        save
+        if persistable?
+          save
+        else
+          # TODO: Handle SubForms
+          sections.each do |section|
+            section.rows.each do |row|
+              row.value = original_kv[row.key]
+            end
+          end
+        end
       end
     end
 
     # places hash of values into application persistance
     def save
+      raise Formotion::MissingPersistKeyError, "You must set a :persist_as if you wish to persist the form" unless persistable?
+      
       App::Persistence[persist_key] = render
       App::Persistence[original_persist_key] ||= render
     end
 
     def reset
       App::Persistence[persist_key] = App::Persistence[original_persist_key]
+
       open
     end
 
     private
 
+    def persistable?
+      persist_as.to_s.length > 0
+    end
+
     def persist_key
-      "FORMOTION_#{self.persist_as}"
+      "FORMOTION_#{self.persist_as}" if persistable?
     end
 
     def original_persist_key
-      "#{persist_key}_ORIGINAL"
+      "#{persist_key}_ORIGINAL" if persistable?
     end
 
     def load_state
@@ -334,6 +354,19 @@ module Formotion
         v.nil?
       }
       h.delete_if &delete_empty
+    end
+
+    def original_kv
+      @form_data_key_value = {}
+
+      # TODO: Handle SubForms
+      initial_form_data[:sections].each do |s|
+        s[:rows].each do |row|
+          @form_data_key_value[row[:key]] = row[:value]
+        end
+      end
+
+      @form_data_key_value          
     end
   end
 end
