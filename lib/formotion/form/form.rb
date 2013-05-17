@@ -286,9 +286,7 @@ module Formotion
         else
           # TODO: Handle SubForms
           sections.each do |section|
-            section.rows.each do |row|
-              row.value = original_kv[row.key]
-            end
+            form_set_original(section.rows)
           end
         end
       end
@@ -359,14 +357,51 @@ module Formotion
     def original_kv
       @form_data_key_value = {}
 
-      # TODO: Handle SubForms
       initial_form_data[:sections].each do |section|
-        section[:rows].each do |row|
-          @form_data_key_value[row[:key]] = row[:value]
-        end
+        @form_data_key_value = form_get_key_value(section[:rows])
       end
 
       @form_data_key_value          
+    end
+
+    def form_set_original(rows)
+      key_value = {}
+
+      rows.each do |_row|
+        if _row.is_a?(Formotion::Row)
+          if _row.subform != nil
+            _row.subform[:sections].each do |section|          
+              form_set_original(section[:rows])
+            end
+          else
+            _row.value = original_kv[_row.key]
+          end
+        else
+          puts "\n\nRow ======================"
+          puts _row
+          if row(_row[:key])
+            row(_row[:key]).value = _row[:value]
+          end
+        end
+      end
+
+      key_value
+    end
+
+    def form_get_key_value(rows)
+      key_value = {}
+
+      rows.each do |row|
+        if row.has_key?(:subform)
+          row[:subform][:sections].each do |section|            
+            key_value.merge!(form_get_key_value(section[:rows]))
+          end
+        else
+          key_value[row[:key]] = row[:value]
+        end
+      end
+
+      key_value
     end
   end
 end
